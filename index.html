@@ -15,18 +15,13 @@
             height: 100vh;
             overflow: hidden;
             cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000; /* خلفية سوداء لتقليل الفراغات */
         }
         .container {
-            width: 90vw; /* تقليل حجم الخلفية قليلاً */
-            height: 90vh;
+            width: 100vw;
+            height: 100vh;
             background: url('https://up6.cc/2025/02/174049400656511.jpg') no-repeat center center;
-            background-size: contain; /* تصغير نسبة الصورة */
-            background-position: center;
-            background-color: black; /* تجنب ظهور فراغات بيضاء */
+            background-size: cover;
+            background-position: center top; /* يمكنك تغيير "top" إلى "bottom" أو "left" حسب الحاجة */
         }
     </style>
 </head>
