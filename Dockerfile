@@ -1,34 +1,40 @@
-# ─────────────────────────────────────────────────────────────────
-# استخدم صورة Python خفيفة مبنيّة على Debian/Ubuntu
-FROM python:3.10-slim
+FROM python:3.9-slim
 
-# ─────────────────────────────────────────────────────────────────
-# خطوة تحديث الحزم وتثبيت الأدوات اللازمة لتشغيل Chromium وChromeDriver
-RUN apt-get update && \
-    apt-get install -y \
-      wget \
-      unzip \
-      xvfb \
-      chromium \
-      chromium-driver && \
-    rm -rf /var/lib/apt/lists/*
+# تثبيت متطلبات النظام
+RUN apt-get update && apt-get install -y \
+    wget \
+    unzip \
+    xvfb \
+    libxi6 \
+    libgconf-2-4 \
+    default-jdk \
+    fonts-liberation \
+    libappindicator3-1 \
+    libnss3 \
+    lsb-release \
+    xdg-utils \
+    libu2f-udev \
+    libxrandr2 \
+    libatk-bridge2.0-0 \
+    libxkbcommon0 \
+    libgbm1 \
+    libasound2
 
-# ─────────────────────────────────────────────────────────────────
-# أنشئ مجلّد العمل داخل الحاوية ونسخ ملفات المشروع إليه
+# تثبيت Chrome
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
+    && rm google-chrome-stable_current_amd64.deb
+
+# تثبيت ChromeDriver
+RUN CHROMEDRIVER_VERSION=$(wget -q -O - https://chromedriver.storage.googleapis.com/LATEST_RELEASE) \
+    && wget -q https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip \
+    && unzip chromedriver_linux64.zip -d /usr/bin/ \
+    && rm chromedriver_linux64.zip \
+    && chmod +x /usr/bin/chromedriver
+
+# إعداد التطبيق
 WORKDIR /app
 COPY . /app
-
-# ─────────────────────────────────────────────────────────────────
-# ثبّت متطلبات البايثون من ملف requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ─────────────────────────────────────────────────────────────────
-# عرّف متغيّرات البيئة لمواقع المتصفّح وChromeDriver
-ENV CHROME_BIN=/usr/bin/chromium
-ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
-
-# ─────────────────────────────────────────────────────────────────
-# الأمر الافتراضي عند تشغيل الحاوية:
-# نفّذ xfvb-run لتشغيل المتصفح في بيئة افتراضية ثم شغّل ملف بوت التليجرام
-CMD ["sh", "-c", "xvfb-run --server-args='-screen 0 1024x768x24' python main.py"]
-# بدل "main.py" باسم ملف سكربت البوت الخاص بك إن كان مختلفاً.
+CMD ["python", "main.py"]
