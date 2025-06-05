@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 2) ضع توكن بوت التلجرام هنا:
-TELEGRAM_TOKEN = '6653730137:AAGmEno_OEnvw1oC39jB69is9hO22pczhdE'
+TELEGRAM_TOKEN = '6653730137:AAGmPTd6KKhJ6VtvuyHNY5uK61iH7xG7xLA'
 
 # 3) مسار Chromedriver إذا لم يكن في PATH:
 CHROMEDRIVER_PATH = '/path/to/chromedriver'  # عدّل هذا المسار حسب مكان chromedriver عندك
