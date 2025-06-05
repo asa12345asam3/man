@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import logging
 import time
 from typing import Dict
@@ -25,11 +26,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 2) ضع توكن بوت التلجرام هنا:
+# 2) ضع توكن بوت التلجرام هنا مباشرةً
 TELEGRAM_TOKEN = '6653730137:AAGmPTd6KKhJ6VtvuyHNY5uK61iH7xG7xLA'
 
-# 3) مسار Chromedriver إذا لم يكن في PATH:
-CHROMEDRIVER_PATH = '/path/to/chromedriver'  # عدّل هذا المسار حسب مكان chromedriver عندك
+# 3) مسار Chromedriver من متغيّر البيئة أو القيمة الافتراضية داخل الحاوية
+CHROMEDRIVER_PATH = os.getenv('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
 
 # 4) دالة لإنشاء ChromeDriver مع بعض الإعدادات (Headless اختياري)
 def create_chrome_driver(headless: bool = True) -> webdriver.Chrome:
@@ -39,9 +40,8 @@ def create_chrome_driver(headless: bool = True) -> webdriver.Chrome:
         options.add_argument('--disable-gpu')
     options.add_argument('--no-sandbox')
     options.add_argument('--window-size=1200x800')
-    # (يمكن إضافة أو تعديل الـ user-agent إن لزمّ)
     options.add_argument(
-        'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
+        'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
         'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
     )
     service = ChromeService(executable_path=CHROMEDRIVER_PATH)
@@ -77,15 +77,9 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         driver.get(url)
 
         # 7.3) ننتظر حتى يظهر الزر الأزرق الخاص بـ “إرسال رمز الأمان”
-        #      عادةً زر “أرسل الرمز إلى البريد الإلكتروني” في هذه المرحلة يكون input أو button بعلامات معينة.
-        #      في هذه الأمثلة سنبحث عن زر به نص عربي “إرسال رمز الأمان” أو نستخدم CSS/XPATH التقريبي.
-        #
-        #      مثال عام: زر الزر الأزرق قد يكون مكتوب فيه كلمة “إرسال” أو “Next” أو قد يكون زرًا بدون نص لكن بلون أزرق.
-        #      نستخدم انتظار حتى يظهر عنصر button أو input من النوع submit ضمن حقل معين.
-        #
         wait = WebDriverWait(driver, 20)
 
-        # 7.4) مثال: نبحث زر button فيه نص عربي يحتوي “إرسال” ضمن الصفحة:
+        # 7.4) مثال: نبحث زر button فيه نص عربي يحتوي “إرسال” أو نص إنجليزي “Send”
         try:
             button_send = wait.until(
                 EC.element_to_be_clickable(
@@ -93,7 +87,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 )
             )
         except:
-            # إذا لم نجده في النص العربي/الإنجليزي، نجرب البحث بحسب class أو attribute شائع
+            # إذا لم نجده في النص العربي/الإنجليزي، نجرب البحث بحسب CSS selector عام
             button_send = wait.until(
                 EC.element_to_be_clickable(
                     (By.CSS_SELECTOR, "button[type='submit']")
@@ -125,13 +119,12 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 pass
         context.user_data.clear()
 
-# 8) عند استقبال الرمز (any text بعد الحلقة الأولى)
+# 8) عند استقبال الرمز (أي رسالة نصية لا تبدأ بـ http/https)
 async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text.strip()
 
     # نتأكد أن المرحلة الصحيحة “awaiting_code” ما زالت مستمرة
     if context.user_data.get('stage') != 'awaiting_code' or 'selenium_driver' not in context.user_data:
-        # لم نكن في مرحلة انتظار الرمز، نتجاهل الرسالة
         return
 
     driver: webdriver.Chrome = context.user_data['selenium_driver']
@@ -144,7 +137,6 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         wait = WebDriverWait(driver, 20)
 
         # مثال: غالبًا الحقل يكون input[name="security_code"] أو ما شابه
-        # يعتمد على شكل صفحة إنستاجرام الحالية. سنجرب XPath يحتوي على كلمة “code”:
         input_code = wait.until(
             EC.presence_of_element_located(
                 (By.XPATH, "//input[contains(@name, 'code') or contains(@aria-label, 'security code')]")
@@ -165,24 +157,16 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.info("Clicked Confirm after entering code.")
 
         # 8.4) ننتظر حتى يتم التحميل والإنتقال إلى صفحة الحساب أو حتى ظهور خطأ
-        #       على سبيل المثال، ننتظر ظهور عنصر يدل على أن العملية نجحت مثل وجود input لإدخال كلمة المرور الجديدة 
-        #       أو إعادة توجيه إلى الصفحة الرئيسية.
-        time.sleep(5)  # ننتظر لبضع ثوانٍ للتأكّد من استجابة السيرفر
+        time.sleep(5)  # ننتظر لبضع ثوانٍ للتأكّد من استجابة الإنستاجرام
 
         # 8.5) جلب الكوكيز من الـ driver (sessionid و csrftoken)
-        cookies = driver.get_cookies()  # قائمة dict فيها كل الكوكيز
-        cookie_dict: Dict[str, str] = {}
-        for ck in cookies:
-            cookie_dict[ck['name']] = ck['value']
+        cookies = driver.get_cookies()
+        cookie_dict: Dict[str, str] = { ck['name']: ck['value'] for ck in cookies }
 
         # 8.6) نتأكّد أن الكوكيز المطلوبة موجودة
-        needed = {}
-        for key in ('csrftoken', 'sessionid'):
-            if key in cookie_dict:
-                needed[key] = cookie_dict[key]
+        needed = { k: cookie_dict[k] for k in ('csrftoken', 'sessionid') if k in cookie_dict }
 
         if not needed:
-            # إذا لم نجد الكوكيز المطلوبة
             await update.message.reply_text(
                 "❌ لم أتمكن من العثور على csrftoken أو sessionid بعد إدخال الكود.\n"
                 "ربما فشل التحقق، تأكد من الرمز وحاول مجددًا."
